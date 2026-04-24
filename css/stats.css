@@ -1,0 +1,14 @@
+
+#panelStats {
+    position: absolute;
+    top: 0; left: 0;
+    width: var(--stats-w);
+    height: var(--total-h);
+    overflow: hidden;
+    background: transparent;
+    z-index: 4;
+}
+
+#statsCanvas {
+    display: none;
+}

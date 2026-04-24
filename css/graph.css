@@ -1,0 +1,202 @@
+/* ════════════════════════════════════════════════════════════
+   PAINEL DIREITO — gráfico (4320×1920)
+════════════════════════════════════════════════════════════ */
+#panelRight {
+    position: absolute;
+    top: 0;
+    left: 5400px;
+    width: var(--right-w);
+    height: var(--total-h);
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #2f5bff;
+    display: flex;
+    flex-direction: column;
+}
+
+#panelRight::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+            linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size: 100px 100px;
+    z-index: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+#chartHeader {
+    position: relative;
+    z-index: 2;
+    height: var(--header-h);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 80px;
+    border-bottom: 2px solid rgba(255,255,255,.15);
+    background: rgba(0,0,20,.65);
+    backdrop-filter: blur(20px);
+}
+#chartHeaderLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.chart-eyebrow {
+    font-size: 18px;
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.60);
+}
+
+#chartTitle {
+    font-family: 'Poppins SemiBold', sans-serif;
+    font-size: 44px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.legend {
+    display: flex;
+    gap: 48px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.leg-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 26px;
+    font-family: 'Poppins SemiBold', sans-serif;
+    color: rgba(255,255,255,0.95);
+    letter-spacing: .03em;
+    font-weight: 700;
+}
+
+.leg-dot {
+    width: 48px;
+    height: 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* ── Área do gráfico ────────────────────────────────────── */
+#chartMain {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    padding: 60px 80px 140px;
+    display: flex;
+    align-items: stretch;
+}
+
+#mainChartSvg {
+    width: 100%; height: 100%;
+    overflow: visible;
+}
+
+/* ── Toast neon ─────────────────────────────────────────── */
+#neonToast {
+    position: absolute;
+    bottom: 80px;
+    left: 80px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px 36px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(20px);
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity .6s, transform .6s;
+    pointer-events: none;
+}
+#neonToast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#neonSwatch {
+    width: 60px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--user-color);
+    box-shadow: 0 0 20px var(--user-color);
+    flex-shrink: 0;
+}
+
+#neonInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#neonLabel {
+    font-size: 18px;
+    color: var(--muted);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+}
+
+#neonCourse {
+    font-family: 'Poppins SemiBold', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--user-color);
+}
+
+/* ── Contador participantes ─────────────────────────────── */
+#participantCount {
+    position: absolute;
+    bottom: 80px;
+    right: 80px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+#participantNum {
+    font-family: 'Poppins SemiBold', sans-serif;
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(255,255,255,.15);
+}
+
+.part-label {
+    font-size: 18px;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.12);
+}
+
+#stage.graph-fullscreen #panelRight {
+    left: 0;
+    width: var(--total-w);
+    z-index: 20;
+}
+
+#stage.graph-fullscreen #chartHeader,
+#stage.graph-fullscreen #neonToast,
+#stage.graph-fullscreen #participantCount {
+    display: none;
+}
+
+#stage.graph-fullscreen #chartMain {
+    padding: 0;
+}
+
+#stage.graph-fullscreen #mainChartSvg {
+    width: 100%;
+    height: 100%;
+}

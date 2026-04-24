@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800;900&display=swap');
+
+/* ════════════════════════════════════════════════════════════
+   VARIÁVEIS GLOBAIS
+════════════════════════════════════════════════════════════ */
+:root {
+    --dm:   #F037A5;
+    --ei:   #CDF564;
+    --cd:   #FF4632;
+    --ext:  #ffb800;
+    --text: #ffffff;
+    --muted: rgba(255,255,255,0.45);
+    --overlay: rgba(0,10,40,0.72);
+    --user-color: var(--dm);
+
+    /* Dimensões canónicas da instalação */
+    --total-w:  9720px;
+    --total-h:  1920px;
+    --stats-w:  2160px;  /* painel estatísticas (2 telas) */
+    --left-w:   3240px;  /* painel interação (3 telas)    */
+    --right-w:  4320px;  /* painel gráfico (4 telas)      */
+    --header-h: 140px;   /* header do painel direito */
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: "Poppins ExtraBold", sans-serif;
+    color: var(--text);
+    background: #000;
+}
+
+/* ════════════════════════════════════════════════════════════
+   STAGE — canvas virtual 9720×1920
+════════════════════════════════════════════════════════════ */
+#stage {
+    position: absolute;
+    top: 0; left: 0;
+    width: var(--total-w);
+    height: var(--total-h);
+    transform-origin: top left;
+    background: #2f5bff;
+}
+
+#stage.quiz-theme {
+    background: #2f5bff;
+}
+
+#stage.quiz-theme #panelStats {
+    background: transparent;
+}
+
+#stage.quiz-theme #panelStats::before {
+    opacity: 0;
+}
+
+#panelStats {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--stats-w);
+    height: var(--total-h);
+    z-index: 4;
+    overflow: hidden;
+    background:
+            radial-gradient(circle at 20% 20%, rgba(0,229,255,.18), transparent 30%),
+            radial-gradient(circle at 80% 70%, rgba(255,60,172,.16), transparent 28%),
+            linear-gradient(180deg, #030712 0%, #02040a 100%);
+    opacity: 0;
+    transition: opacity .2s ease;
+    pointer-events: none;
+}
+
+#panelStats.active {
+    opacity: 1;
+}
+
+#panelStats::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+            linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 72px 72px;
+    opacity: .55;
+}
+
+#asciiCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+#statOverlay {
+    position: absolute;
+    top: 80px;
+    left: 80px;
+    width: min(740px, calc(100% - 160px));
+    padding: 40px 48px;
+    border: 2px solid rgba(255,255,0,.55);
+    border-radius: 30px;
+    background: rgba(20, 10, 60, .35);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 0 40px rgba(255,255,0,.12);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: opacity .45s ease, transform .45s ease;
+    z-index: 1;
+}
+
+#panelStats.stat-right {
+    left: calc(var(--total-w) - var(--stats-w));
+}
+
+#panelStats.stat-right #statOverlay {
+    left: auto;
+    right: 120px;
+    transform: translateX(40px);
+}
+
+#statOverlay.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.stat-big-number {
+    font-family: 'Poppins ExtraBold', sans-serif;
+    font-size: 150px;
+    font-weight: 900;
+    line-height: .9;
+    color: #ffff00 !important;
+    text-shadow: 0 0 36px rgba(255,255,0,.35);
+}
+
+.stat-label {
+    font-family: 'Poppins ExtraBold', sans-serif;
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.18;
+    color: #ffff00 !important;
+}
+
+/* ── Utilitários partilhados ────────────────────────────── */
+.tag {
+    font-size: 20px;
+    letter-spacing: .35em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+#stage.graph-fullscreen #panelStats,
+#stage.graph-fullscreen #panelLeft {
+    opacity: 0;
+    pointer-events: none;
+}
