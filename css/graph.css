@@ -1,15 +1,12 @@
-/* ════════════════════════════════════════════════════════════
-   PAINEL DIREITO — gráfico (4320×1920)
-════════════════════════════════════════════════════════════ */
 #panelRight {
     position: absolute;
     top: 0;
-    left: 5400px;
+    left: 7290px;
     width: var(--right-w);
     height: var(--total-h);
     flex-shrink: 0;
     overflow: hidden;
-    background: #2f5bff;
+    background: #f8eee5;
     display: flex;
     flex-direction: column;
 }
@@ -26,7 +23,7 @@
     z-index: 0;
 }
 
-/* ── Header ─────────────────────────────────────────────── */
+/* Header */
 #chartHeader {
     position: relative;
     z-index: 2;
@@ -85,7 +82,7 @@
     flex-shrink: 0;
 }
 
-/* ── Área do gráfico ────────────────────────────────────── */
+/* Área do gráfico */
 #chartMain {
     position: relative;
     z-index: 1;
@@ -100,7 +97,7 @@
     overflow: visible;
 }
 
-/* ── Toast neon ─────────────────────────────────────────── */
+/* Toast neon */
 #neonToast {
     position: absolute;
     bottom: 80px;
@@ -153,7 +150,7 @@
     color: var(--user-color);
 }
 
-/* ── Contador participantes ─────────────────────────────── */
+/* Contador participantes */
 #participantCount {
     position: absolute;
     bottom: 80px;
@@ -199,4 +196,69 @@
 #stage.graph-fullscreen #mainChartSvg {
     width: 100%;
     height: 100%;
+}
+
+#graphBubble {
+    position: absolute;
+    top: 50%;
+    z-index: 20;
+    pointer-events: none;
+
+    transform: translateX(-50%) translateY(calc(-50% - 12px)) scale(0.9);
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    background: transparent;
+}
+
+#graphBubble[style*="opacity: 1"],
+#graphBubble[style*="opacity:1"] {
+    transform: translateX(-50%) translateY(-50%) scale(1);
+}
+
+#gbCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+#gbText {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 60px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.gb-pct {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 900;
+    font-size: 200px;
+    line-height: 0.9;
+    color: #f8eee5;
+    letter-spacing: -0.02em;
+    text-shadow: 0 0 28px rgba(109,34,57,0.28);
+}
+
+.gb-lbl {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 48px;
+    line-height: 1.25;
+    text-align: center;
+    color: #f8eee5;
+    opacity: 0.9;
+    text-shadow: 0 0 22px rgba(109,34,57,0.28);
 }

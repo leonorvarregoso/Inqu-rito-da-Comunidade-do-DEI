@@ -1,7 +1,4 @@
-/* ════════════════════════════════════════════════════════════
-   STANDBY — Fluid Blob Pixel Effect
-   Fundo azul #2f5bff, quadrados amarelos animados
-════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 #standbyOverlay {
     position: absolute;
@@ -12,10 +9,10 @@
     height: var(--total-h);
     z-index: 9000;
     pointer-events: none;
-    background: #2f5bff;
+    background: #f8eee5;
+    font-family: 'Poppins', sans-serif;
 }
 
-/* Canvas que ocupa os 9720px todos */
 #standbyCanvas {
     position: absolute;
     inset: 0;
@@ -24,18 +21,12 @@
     display: block;
 }
 
-/* Canvas de segmentação — escondido, só para leitura */
-#standbySegCanvas {
-    display: none;
-}
-
-/* Botão / logo centrado */
 #standbyBtn {
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 2200px;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -43,16 +34,32 @@
     transition: opacity .3s;
 }
 
-#standbyTitulo {
-    width: 100%;
-    height: auto;
+#standbyVariableText {
     display: block;
-    object-fit: contain;
-    mix-blend-mode: screen;
-    opacity: 0.95;
+    width: 100%;
+    color: #6d2239;
+    font-family: 'Poppins', sans-serif;
+    font-size: clamp(260px, 8vw, 520px);
+    font-weight: 200;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    text-align: center;
+    text-transform: none;
+    white-space: nowrap;
+    user-select: none;
 }
 
-/* Anel de progresso de presença */
+.standby-letter {
+    display: inline-block;
+    font-weight: 200;
+    will-change: font-weight, color;
+}
+
+.standby-word {
+    display: inline-block;
+    white-space: nowrap;
+}
+
 #standbyBtn svg.ring {
     display: none;
 }
@@ -60,13 +67,13 @@
 #standbyProg {
     display: none;
     fill: none;
-    stroke: #fff;
+    stroke: #6d2239;
     stroke-width: 5;
     stroke-linecap: round;
     stroke-dasharray: 616;
     stroke-dashoffset: 616;
     transition: stroke-dashoffset .08s linear;
-    filter: drop-shadow(0 0 12px #fff);
+    filter: drop-shadow(0 0 12px #6d2239);
 }
 
 /* Transição de saída */
@@ -82,7 +89,7 @@
     left: 50%;
     transform: translateX(-50%);
     font-size: 70px;
-    color: rgba(255,255,255);
+    color: rgba(109,34,57);
     letter-spacing: .15em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -90,11 +97,7 @@
 
 }
 #standbyKbd strong {
-    color: rgba(255,255,255,0.90);
+    color: rgba(109,34,57,0.90);
     font-weight: 700;
 }
 
-@keyframes sbPulse {
-    0%, 100% { opacity: 0.55; }
-    50%       { opacity: 1; }
-}

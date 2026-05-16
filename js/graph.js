@@ -1,13 +1,12 @@
-/* ═══════════════════════════════════════════════════════════
-   chart.js — Gráfico de coordenadas paralelas, onda e toast
-   Depende de: config.js
-═══════════════════════════════════════════════════════════ */
+// parâmetros da onda animada que aparece em S1
+const WAVE_SPEED = 0.018;
+const WAVE_AMP   = 0.38;
+const LINE_BEND_JITTER = 120;
+const STAT_BG_COLOR = '#f8eee5';
+const STAT_STAIN_COLORS = ['#ffb7b8', '#fa450e', '#d9c667', '#ffb7b8'];
+const STAT_STAIN_STOPS = [0, 0.33, 0.66, 1];
 
-// ── Constantes da onda ───────────────────────────────────
-const WAVE_SPEED = 0.018;  // velocidade de rotação da fase
-const WAVE_AMP   = 0.38;   // amplitude em fracção de (H - pt - pb) / 2
-
-// ── Estado da onda ───────────────────────────────────────
+// estado da onda
 let waveRaf         = null;
 let wavePhase       = 0;
 let waveActive      = false;
@@ -15,12 +14,10 @@ let waveSettling    = false;
 let waveSettleStart = 0;
 let waveSettleFrom  = 0;
 
-// ════════════════════════════════════════════════════════════
-//   SVG helpers
-// ════════════════════════════════════════════════════════════
-
+// namespace SVG
 const NS = 'http://www.w3.org/2000/svg';
 
+// cria um elemento SVG com os atributos e texto dados
 function mkEl(tag, attrs, text) {
     const el = document.createElementNS(NS, tag);
     Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
@@ -28,8 +25,40 @@ function mkEl(tag, attrs, text) {
     return el;
 }
 
-/** Constrói um path cúbico suavizado a partir de um array de {x, y} */
-function pointsToCurvedPath(pts) {
+// constrói um path cúbico suavizado a partir de um array de pontos
+function seededNoise(seed, idx, salt = 0) {
+    const x = Math.sin(seed * 97.13 + idx * 41.77 + salt * 19.31) * 10000;
+    return (x - Math.floor(x)) * 2 - 1;
+}
+
+function statLerpColor(c1, c2, t) {
+    const r1 = parseInt(c1.slice(1,3), 16), g1 = parseInt(c1.slice(3,5), 16), b1 = parseInt(c1.slice(5,7), 16);
+    const r2 = parseInt(c2.slice(1,3), 16), g2 = parseInt(c2.slice(3,5), 16), b2 = parseInt(c2.slice(5,7), 16);
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `rgb(${r},${g},${b})`;
+}
+
+function statStainColor(xFrac, yFrac, n, t) {
+    const raw = (xFrac * 0.5 + yFrac * 0.5 + n * 0.15 + t * 0.08) % 1;
+    const value = raw < 0 ? raw + 1 : raw;
+
+    for (let i = 0; i < STAT_STAIN_STOPS.length - 1; i++) {
+        const from = STAT_STAIN_STOPS[i];
+        const to = STAT_STAIN_STOPS[i + 1];
+        if (value >= from && value <= to) {
+            return statLerpColor(
+                STAT_STAIN_COLORS[i],
+                STAT_STAIN_COLORS[i + 1],
+                (value - from) / (to - from)
+            );
+        }
+    }
+    return STAT_STAIN_COLORS[0];
+}
+
+function pointsToCurvedPath(pts, seed = 0, bendAmp = 0) {
     if (pts.length < 2) return '';
     if (pts.length === 2) return `M${pts[0].x} ${pts[0].y} L${pts[1].x} ${pts[1].y}`;
     let d = `M${pts[0].x} ${pts[0].y}`;
@@ -37,18 +66,24 @@ function pointsToCurvedPath(pts) {
         const p1 = pts[i];
         const p2 = pts[i + 1];
         const midX = (p1.x + p2.x) / 2;
-        const cp1x = midX, cp1y = p1.y;
-        const cp2x = midX, cp2y = p2.y;
+        const cpJitter = bendAmp ? seededNoise(seed, i, 3) * bendAmp * 0.35 : 0;
+        const cp1x = midX + cpJitter;
+        const cp2x = midX - cpJitter;
+        const cp1y = p1.y + (bendAmp ? seededNoise(seed, i, 1) * bendAmp : 0);
+        const cp2y = p2.y + (bendAmp ? seededNoise(seed, i, 2) * bendAmp : 0);
         d += ` C${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
     }
     return d;
 }
 
-/** Desenha uma linha curva + pontos no SVG pai */
-function drawCurvedLine(parent, ans, axX, axY, sw, alpha, forceColor, filterId) {
+// desenha uma linha curva + pontos no elemento SVG
+function drawCurvedLine(parent, ans, axX, axY, sw, alpha, forceColor, filterId, jitterSeed = 0, bendAmp = 0) {
     if (ans.length < 2) return;
-    const pts   = ans.map((v, i) => ({ x: axX(i), y: axY(v) }));
-    const d     = pointsToCurvedPath(pts);
+    const pts   = ans.map((v, i) => ({
+        x: axX(i),
+        y: axY(v)
+    }));
+    const d     = pointsToCurvedPath(pts, jitterSeed, bendAmp);
     const attrs = { d, fill:'none', 'stroke-width': String(sw), opacity: String(alpha) };
     if (forceColor) attrs.stroke = forceColor;
     if (filterId)   attrs.filter = `url(#${filterId})`;
@@ -61,34 +96,28 @@ function drawCurvedLine(parent, ans, axX, axY, sw, alpha, forceColor, filterId) 
     });
 }
 
-// ════════════════════════════════════════════════════════════
-//   Gráfico principal
-// ════════════════════════════════════════════════════════════
-
-/**
- * Renderiza o gráfico de coordenadas paralelas.
- * @param {object|null} highlightEntry - { curso, answers } para destacar com neon
- * @param {number}      waveOffset     - fase actual da onda (0 = sem onda)
- */
+// renderiza o gráfico de coordenadas paralelas
+// highlightEntry para destacar com neon
+// waveOffset fase atual da onda
 function drawMainChart(highlightEntry = null, waveOffset = 0) {
     const svgEl = document.getElementById('mainChartSvg');
 
-    // Dimensões virtuais fixas do canvas (independentes do scale do ecrã)
+    // em fullscreen o gráfico ocupa o stage inteiro sem padding
     const isFs = document.getElementById('stage')?.classList.contains('graph-fullscreen');
-    // Normal: RIGHT_W=4320, padding h=80 cada lado, header=140, pad top=60, pad bot=140
-    // Fullscreen: painel ocupa CANVAS_W inteiro, sem header nem padding
     const W = isFs ? CANVAS_W        : (RIGHT_W - 160);
     const H = isFs ? CANVAS_H        : (CANVAS_H - 140 - 200);
 
     const nQ = QUESTIONS.length;
     const pt = 80, pb = 80, pl = 120, pr = 120;
+
+    // funções de mapeamento: índice/valor coordenada SVG
     const axX = i => pl + (i / (nQ - 1)) * (W - pl - pr);
     const axY = v => pt + (v / 2)        * (H - pt - pb);
 
     svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svgEl.innerHTML = '';
 
-    // ── Definições (filtros + clip) ──────────────────────
+    // filtros de glow e clip path
     const defs = mkEl('defs', {});
     defs.innerHTML = `
     <filter id="glow_main" x="-30%" y="-30%" width="160%" height="160%">
@@ -104,7 +133,6 @@ function drawMainChart(highlightEntry = null, waveOffset = 0) {
     </clipPath>`;
     svgEl.appendChild(defs);
 
-    // ── Eixos e labels ───────────────────────────────────
     for (let i = 0; i < nQ; i++) {
         const x = axX(i);
         const q = QUESTIONS[i];
@@ -115,18 +143,18 @@ function drawMainChart(highlightEntry = null, waveOffset = 0) {
             stroke:'rgba(255,255,255,0.18)', 'stroke-width':'2'
         }));
 
-        // label da pergunta (topo)
+        // label da pergunta no topo do eixo
         svgEl.appendChild(mkEl('text', {
             x, y: pt - 40,
             'text-anchor':'middle',
-            fill:'rgba(255,255,255,0.80)',
+            fill:'#6d2239',
             'font-size':'26',
             'font-family':'Space Mono,monospace',
             'letter-spacing':'2',
             'font-weight':'700'
         }, q.label));
 
-        // ticks + labels das opcoes de resposta
+        // ticks e labels das três opções de resposta
         [0, 1, 2].forEach(v => {
             const cy = axY(v);
             const optText = q.opts ? q.opts[v] : String(v);
@@ -143,8 +171,9 @@ function drawMainChart(highlightEntry = null, waveOffset = 0) {
                 'stroke-width':'1.5'
             }));
 
-            // label da opcao nos eixos extremos
+            // labels de texto só nos eixos extremos — nos do meio fica um número pequeno
             if (isFirst || isLast) {
+                // quebrar o texto em linhas se for muito comprido
                 const words = optText.split(' ');
                 const lineH = 22;
                 const lines = [];
@@ -168,7 +197,7 @@ function drawMainChart(highlightEntry = null, waveOffset = 0) {
                     }, ln));
                 });
             } else {
-                // nos eixos do meio: numero pequeno (1,2,3)
+                // eixos intermédios numero
                 svgEl.appendChild(mkEl('text', {
                     x: String(x + 10), y: String(cy - 10),
                     'text-anchor':'start',
@@ -180,11 +209,12 @@ function drawMainChart(highlightEntry = null, waveOffset = 0) {
         });
     }
 
-    // ── Linhas de dados ──────────────────────────────────
+    // linhas de dados — uma por participante, agrupadas por curso
     const all        = dbLoad();
     const totalLines = all.filter(r => r.answers && r.answers.length >= 2).length;
     const waveAmpPx  = waveOffset !== 0 ? WAVE_AMP * (H - pt - pb) / 2 : 0;
 
+    //  onda sinusoidal
     function axYWave(v, lineSeed) {
         const base = axY(v);
         if (!waveOffset) return base;
@@ -196,53 +226,45 @@ function drawMainChart(highlightEntry = null, waveOffset = 0) {
         const grp  = mkEl('g', { stroke: COLORS[c] || '#fff', 'clip-path':'url(#chartClip)' });
         rows.forEach(row => {
             const globalIdx = all.indexOf(row);
+            // linhas mais recentes ficam mais opacas
             const age       = totalLines > 1 ? globalIdx / (totalLines - 1) : 1;
             const alpha     = 0.30 + age * 0.65;
-            const lineSeed  = (globalIdx * 2.399) % (2 * Math.PI); // golden angle
+            // seed única por linha para a onda não ser síncrona
+            const lineSeed  = (globalIdx * 2.399) % (2 * Math.PI);
             const axYFn     = v => axYWave(v, lineSeed);
-            drawCurvedLine(grp, row.answers, axX, axYFn, 3, alpha, null, null);
+            drawCurvedLine(grp, row.answers, axX, axYFn, 3, alpha, null, null, globalIdx + 1, LINE_BEND_JITTER);
         });
         svgEl.appendChild(grp);
     });
 
-    // ── Linha destacada (neon) ───────────────────────────
+    // linha neon destacada
     if (highlightEntry) {
         const { curso: hc, answers: ha } = highlightEntry;
         const color = COLORS[hc] || '#fff';
 
-        // glow exterior largo
+        // três camadas: glow largo, glow interior, linha sólida
         const glowGrp2 = mkEl('g', { stroke: color, 'clip-path':'url(#chartClip)' });
         drawCurvedLine(glowGrp2, ha, axX, axY, 20, 0.20, color, 'glow_neon');
         svgEl.appendChild(glowGrp2);
 
-        // glow interior
         const glowGrp = mkEl('g', { stroke: color, 'clip-path':'url(#chartClip)' });
         drawCurvedLine(glowGrp, ha, axX, axY, 10, 0.40, color, 'glow_neon');
         svgEl.appendChild(glowGrp);
 
-        // linha sólida no topo
         const topGrp = mkEl('g', { stroke: color, 'clip-path':'url(#chartClip)' });
         drawCurvedLine(topGrp, ha, axX, axY, 5, 1.0, color, null);
         svgEl.appendChild(topGrp);
     }
 }
 
-/** Desenha o gráfico parcial durante o quiz (S2) */
-function drawS2Partial() {
-    if (answers.length < 2) return;
-    drawMainChart({ curso, answers });
-}
-
-// ════════════════════════════════════════════════════════════
-//   Onda animada (idle em S0)
-// ════════════════════════════════════════════════════════════
-
+// inicia a onda animada
 function startWave() {
     waveActive   = true;
     waveSettling = false;
     if (!waveRaf) waveRaf = requestAnimationFrame(waveLoop);
 }
 
+// para a onda com ease-out suave
 function stopWave() {
     if (!waveActive) return;
     waveActive      = false;
@@ -251,6 +273,7 @@ function stopWave() {
     waveSettleStart = performance.now();
 }
 
+// loop da onda — atualiza a fase e redesenha o gráfico
 function waveLoop() {
     waveRaf = null;
     if (waveSettling) {
@@ -275,15 +298,7 @@ function waveLoop() {
     waveRaf = requestAnimationFrame(waveLoop);
 }
 
-// ════════════════════════════════════════════════════════════
-//   Toast neon + contador de participantes
-// ════════════════════════════════════════════════════════════
-
-/**
- * Mostra o toast neon com a linha do utilizador destacada no gráfico.
- * @param {string}   c   - curso (dm | ei | cd | ext)
- * @param {number[]} ans - respostas do utilizador
- */
+//  linha do utilizador destacada no gráfico
 function flashNeon(c, ans) {
     clearTimeout(neonTimer);
     drawMainChart({ curso: c, answers: ans });
@@ -300,30 +315,32 @@ function flashNeon(c, ans) {
 
     document.getElementById('neonToast').classList.add('show');
 
+    //  limpa o destaque
     neonTimer = setTimeout(() => {
         document.getElementById('neonToast').classList.remove('show');
         drawMainChart();
     }, NEON_SEC * 1000);
 }
 
-/** Actualiza o contador de participantes no canto inferior direito */
+// atualiza o contador de participantes no canto do gráfico
 function updateParticipantCount() {
     document.getElementById('participantNum').textContent = dbLoad().length;
 }
 
-// ── Init: primeiro render do gráfico ────────────────────
+// render inicial ao carregar a página
 drawMainChart();
 
-// ── Mostrar / esconder o painel do gráfico ───────────────
+// referências para mostrar/esconder o painel do gráfico
 const _panelRight = document.getElementById('panelRight');
 const _stage = document.getElementById('stage');
 
+// ativa ou desativa o modo fullscreen do gráfico (usado em S3)
 function setGraphFullscreen(enabled) {
     _stage.classList.toggle('graph-fullscreen', enabled);
     if (enabled) drawMainChart();
 }
 
-
+// mostra o painel do gráfico com fade in
 function showGraph() {
     _panelRight.style.transition    = 'opacity 0.8s ease';
     _panelRight.style.opacity       = '1';
@@ -332,12 +349,179 @@ function showGraph() {
     updateParticipantCount();
 }
 
+// esconde o painel do gráfico com fade out
 function hideGraph() {
     _panelRight.style.transition    = 'opacity 0.5s ease';
     _panelRight.style.opacity       = '0';
     _panelRight.style.pointerEvents = 'none';
 }
 
-// Painel come?a escondido ? s? aparece no final do quiz
+// painel só aparece no final do quiz
 _panelRight.style.opacity       = '0';
 _panelRight.style.pointerEvents = 'none';
+
+const graphBubble = (function() {
+    const el = document.createElement('div');
+    el.id = 'graphBubble';
+    el.innerHTML = `
+        <canvas id="gbCanvas"></canvas>
+        <div id="gbText">
+            <div class="gb-pct" id="gbPct"></div>
+            <div class="gb-lbl" id="gbLbl"></div>
+        </div>
+    `;
+    document.getElementById('panelRight').appendChild(el);
+    return el;
+})();
+
+const gbPct = document.getElementById('gbPct');
+const gbLbl = document.getElementById('gbLbl');
+const gbCanvas = document.getElementById('gbCanvas');
+const gbCtx    = gbCanvas.getContext('2d');
+
+// Tamanho da bolha em px (deve bater certo com o CSS 700×700)
+const GB_SIZE = 700;
+gbCanvas.width  = GB_SIZE;
+gbCanvas.height = GB_SIZE;
+
+let gbTime       = 0;
+let gbAnimId     = null;
+let gbCurrentAxis = -1;
+let gbHideTimer   = null;
+let gbVisible     = false;
+
+// Funções de noise e forma da bolha circular
+function gbNoise(x, y, t) {
+    return Math.sin(x * 0.04 + t) +
+           Math.cos(y * 0.04 - t * 0.7) +
+           Math.sin((x + y) * 0.02 + t * 0.5);
+}
+
+function gbShape(x, y, cols, rows) {
+    const dx = (x - cols / 2) / (cols * 0.38);
+    const dy = (y - rows / 2) / (rows * 0.38);
+    return 1.2 - Math.sqrt(dx * dx + dy * dy);
+}
+
+function gbDraw() {
+    gbTime += 0.003;
+    const W = GB_SIZE, H = GB_SIZE;
+    const R = W * 0.5;
+    const t = gbTime;
+
+    gbCtx.clearRect(0, 0, W, H);
+
+    // Clip circular
+    gbCtx.save();
+    gbCtx.beginPath();
+    gbCtx.arc(W / 2, H / 2, R, 0, Math.PI * 2);
+    gbCtx.clip();
+
+    // Fundo igual ao ecra
+    gbCtx.fillStyle = typeof STAT_BG_COLOR !== 'undefined' ? STAT_BG_COLOR : '#f8eee5';
+    gbCtx.fillRect(0, 0, W, H);
+
+    // Grid de quadrados com noise orgânico
+    const COLS = 80, ROWS = 80;
+    const cellW = W / COLS, cellH = H / ROWS;
+
+    for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+            const n = gbNoise(col, row, t);
+            const s = gbShape(col, row, COLS, ROWS);
+            let v = s * 1.4 + n * 0.25;
+            v = Math.tanh(v * 2);
+            if (v < 0.05) continue;
+
+            const breathe = 0.7 + Math.sin(t * 2 + col * 0.02 + row * 0.02) * 0.3;
+            const size    = (0.5 + Math.abs(v) * 0.5) * breathe;
+            const ox = Math.sin(t + row * 0.02) * 0.5;
+            const oy = Math.cos(t + col * 0.02) * 0.5;
+
+            gbCtx.fillStyle = typeof statStainColor === 'function'
+                ? statStainColor(col / COLS, row / ROWS, n, t)
+                : '#d9c667';
+            gbCtx.fillRect(col * cellW + ox, row * cellH + oy, cellW * size, cellH * size);
+        }
+    }
+
+    gbCtx.restore();
+
+    gbAnimId = requestAnimationFrame(gbDraw);
+}
+
+function gbStart() {
+    if (gbAnimId) return;
+    gbDraw();
+}
+
+function gbStop() {
+    if (gbAnimId) { cancelAnimationFrame(gbAnimId); gbAnimId = null; }
+}
+
+// Mostra a bolha para o eixo i, centrada verticalmente no panelRight
+function getGraphStatFact(axisIdx) {
+    return getQuestionStat(axisIdx);
+}
+
+function graphSetStatText(fact) {
+    gbPct.textContent = fact.pct + '%';
+    gbLbl.innerHTML   = fact.label.replace(/\n/g, '<br>');
+}
+
+function graphShowStat(axisIdx) {
+    if (axisIdx < 0 || axisIdx >= QUESTIONS.length) return;
+
+    if (axisIdx === gbCurrentAxis && gbVisible) {
+        clearTimeout(gbHideTimer); gbHideTimer = null;
+        graphSetStatText(getGraphStatFact(axisIdx));
+        return;
+    }
+
+    clearTimeout(gbHideTimer); gbHideTimer = null;
+    gbCurrentAxis = axisIdx;
+    gbVisible     = true;
+
+    const fact = getGraphStatFact(axisIdx);
+
+    // Posição X do eixo no panelRight
+    const isFs  = document.getElementById('stage')?.classList.contains('graph-fullscreen');
+    const W     = isFs ? CANVAS_W : (RIGHT_W - 160);
+    const nQ    = QUESTIONS.length;
+    const pl    = 120, pr = 120;
+    const axX   = i => pl + (i / (nQ - 1)) * (W - pl - pr);
+    const xFrac = axX(axisIdx) / W;
+    const chartMain = document.getElementById('chartMain');
+    const chartW    = chartMain?.offsetWidth || (RIGHT_W - 160);
+    const bubbleX   = 80 + xFrac * chartW;
+
+    graphBubble.style.left      = bubbleX + 'px';
+    graphBubble.style.opacity   = '0';
+    graphBubble.style.transform = 'translateX(-50%) translateY(calc(-50% - 12px)) scale(0.9)';
+
+    graphSetStatText(fact);
+
+    gbStart();
+
+    // Força reflow
+    graphBubble.offsetHeight;
+    graphBubble.style.opacity   = '1';
+    graphBubble.style.transform = 'translateX(-50%) translateY(-50%) scale(1)';
+}
+
+// Esconde a bolha com delay de tolerância
+function graphHideStat(delay = 1200) {
+    if (gbHideTimer) return;
+    gbHideTimer = setTimeout(() => {
+        gbHideTimer   = null;
+        gbVisible     = false;
+        gbCurrentAxis = -1;
+        graphBubble.style.opacity   = '0';
+        graphBubble.style.transform = 'translateX(-50%) translateY(calc(-50% - 12px)) scale(0.9)';
+        setTimeout(gbStop, 500);
+    }, delay);
+}
+
+// API chamada pelo forms.js
+window.graphShowStat = graphShowStat;
+window.graphHideStat = graphHideStat;
